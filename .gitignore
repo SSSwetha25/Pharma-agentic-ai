@@ -1,0 +1,4 @@
+venv/
+__pycache__/
+*.pyc
+agentic_pharma_report.pdf
