@@ -23,6 +23,22 @@ The system accepts a high-level research query and coordinates multiple speciali
 - Showcase a scalable architecture extensible to real APIs and LLMs  
 
 
+## 🧱 Architecture
 
+The project follows a **Master–Worker agentic** architecture tailored for pharma research workflows.
 
+```text
+User Query
+   ↓
+Master Agent (planner/orchestrator)
+   ↓
++-----------------------------+
+|  Clinical Evidence Agent    |
+|  Patent & IP Agent          |
+|  Market & Competition Agent |
++-----------------------------+
+   ↓
+Aggregator / Synthesizer
+   ↓
+Structured Research Report
 
