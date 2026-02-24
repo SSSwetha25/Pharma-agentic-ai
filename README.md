@@ -41,4 +41,23 @@ Master Agent (planner/orchestrator)
 Aggregator / Synthesizer
    ↓
 Structured Research Report
+```
+## Getting Started
 
+### Prerequisites
+
+- Python 3.10+
+- pip (Python package manager)
+
+### Installation
+
+```bash
+git clone https://github.com/SSSwetha25/Pharma-agentic-ai.git
+cd Pharma-agentic-ai
+pip install -r requirements.txt
+```
+Running the App
+
+```bash
+python app.py
+```
