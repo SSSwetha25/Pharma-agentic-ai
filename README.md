@@ -125,12 +125,4 @@ To test the system's dynamic responsiveness, copy and paste the following querie
    > *"Identify neurology and Alzheimer's disease compounds with FTO in Japan."*
    > *Result:* Extracts amyloid/cognitive clinical registries, references JP patent status, and models a $48B neurology commercial curve.
 
----
 
-## 🚀 Future Roadmap
-
-To scale this prototype into a production-grade enterprise system, the following integrations are proposed:
-- [ ] **Real API Connectors:** Replace simulation engines with live queries to the **ClinicalTrials.gov API**, **Google Patents API**, and **GlobalData Commercial databases**.
-- [ ] **Cognitive LLM Integration:** Connect the Orchestrator to an LLM (e.g., Gemini 1.5 Pro) to read, analyze, and synthesize raw text summaries fetched from APIs.
-- [ ] **Secure Authentication:** Add user log-in protocols and enterprise role-based access for strategic data sharing.
-- [ ] **Multi-format Exporting:** Offer exports to Excel (for financial modeling) and PowerPoint slides (for boardroom presentations).
