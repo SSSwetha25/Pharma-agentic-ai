@@ -1,195 +1,223 @@
 from datetime import datetime
-from textwrap import wrap
-
+import pandas as pd
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-
-
-def _draw_wrapped_text(
-    c: canvas.Canvas,
-    text: str,
-    x: int,
-    y: int,
-    max_width: int,
-    line_height: int,
-) -> int:
-    """
-    Draw text with simple word-wrapping and return the new y position.
-    """
-    if not text:
-        return y
-
-    # Rough approximation: characters per line based on width
-    # (Helvetica 10 ~ 6 points per character on average)
-    max_chars_per_line = max(int(max_width / 6), 20)
-    lines = []
-    for paragraph in str(text).split("\n"):
-        if not paragraph.strip():
-            lines.append("")  # blank line
-        else:
-            lines.extend(wrap(paragraph, max_chars_per_line))
-
-    for line in lines:
-        if y < 50:  # start a new page if we're too close to the bottom
-            c.showPage()
-            c.setFont("Helvetica", 10)
-            y = A4[1] - 50
-        c.drawString(x, y, line)
-        y -= line_height
-
-    return y
-
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 def generate_pdf_report(results, user_query: str) -> str:
     """
-    Generate a simple PDF report summarising the agents' outputs.
-
-    Returns the path to the generated PDF file.
+    Generates a highly professional PDF report summarizing multi-agent findings,
+    using ReportLab Platypus layout tools for clean grids, wrapping, and tables.
     """
     file_path = "agentic_pharma_report.pdf"
-
-    c = canvas.Canvas(file_path, pagesize=A4)
-    width, height = A4
-
-    y = height - 50
-
-    # Title
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "Agentic AI – Pharma Innovation Report")
-    y -= 30
-
-    # Metadata
-    c.setFont("Helvetica", 10)
-    c.drawString(50, y, f"User Query: {user_query}")
-    y -= 15
-    c.drawString(50, y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    y -= 30
-
-    content_width = int(width - 100)  # left margin 50, right margin 50
-
-    # Clinical Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Clinical Trials Summary")
-    y -= 20
-    c.setFont("Helvetica", 10)
-    clinical_text = results.get("clinical", {}).get(
-        "summary", "No clinical summary available."
+    
+    # Page setup (A4 is 595.27 x 841.89 points)
+    # Margins: 40 points
+    doc = SimpleDocTemplate(
+        file_path,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
     )
-    y = _draw_wrapped_text(c, clinical_text, 50, y, content_width, line_height=14)
-    y -= 10
-
-    # Patent Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Patent Landscape Summary")
-    y -= 20
-    c.setFont("Helvetica", 10)
-    patent_text = results.get("patent", {}).get(
-        "summary", "No patent summary available."
+    
+    styles = getSampleStyleSheet()
+    
+    # Create custom styles
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#0f172a'),
+        spaceAfter=6
     )
-    y = _draw_wrapped_text(c, patent_text, 50, y, content_width, line_height=14)
-    y -= 10
-
-    # Market Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Market Overview")
-    y -= 20
-    c.setFont("Helvetica", 10)
-    market_summary = results.get("market", {}).get(
-        "summary", "No market summary available."
+    
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#64748b'),
+        spaceAfter=15
     )
-    y = _draw_wrapped_text(c, market_summary, 50, y, content_width, line_height=14)
+    
+    h1_style = ParagraphStyle(
+        'SectionH1',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        leading=18,
+        textColor=colors.HexColor('#0f766e'), # Deep Teal
+        spaceBefore=12,
+        spaceAfter=8,
+        keepWithNext=True
+    )
+    
+    body_style = ParagraphStyle(
+        'BodyTextCustom',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#334155'),
+        spaceAfter=8
+    )
+    
+    conclusion_style = ParagraphStyle(
+        'ConclusionText',
+        parent=styles['Normal'],
+        fontName='Helvetica-Oblique',
+        fontSize=10,
+        leading=15,
+        textColor=colors.HexColor('#1e293b'),
+        spaceAfter=0
+    )
+    
+    table_header_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=11,
+        textColor=colors.white
+    )
+    
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=11,
+        textColor=colors.HexColor('#334155')
+    )
 
-    # Finalise PDF
-    c.showPage()
-    c.save()
-
-    return file_path
-
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from datetime import datetime
-from textwrap import wrap
-
-
-def _draw_wrapped_text(c: canvas.Canvas, text: str, x: int, y: int, max_width: int, line_height: int) -> int:
-    """
-    Draws text with simple word-wrapping and returns the new y position.
-    """
-    if not text:
-        return y
-
-    # Rough approximation: characters per line based on width
-    # (Helvetica 10 ~ 6 points per character on average)
-    max_chars_per_line = max(int(max_width / 6), 20)
-    lines = []
-    for paragraph in str(text).split("\n"):
-        if not paragraph.strip():
-            lines.append("")  # blank line
-        else:
-            lines.extend(wrap(paragraph, max_chars_per_line))
-
-    for line in lines:
-        if y < 50:  # start a new page if we're too close to the bottom
-            c.showPage()
-            c.setFont("Helvetica", 10)
-            y = A4[1] - 50
-        c.drawString(x, y, line)
-        y -= line_height
-
-    return y
-
-
-def generate_pdf_report(results, user_query):
-    file_path = "agentic_pharma_report.pdf"
-
-    c = canvas.Canvas(file_path, pagesize=A4)
-    width, height = A4
-
-    y = height - 50
-
-    # Title
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, y, "Agentic AI – Pharma Innovation Report")
-    y -= 30
-
-    # Metadata
-    c.setFont("Helvetica", 10)
-    c.drawString(50, y, f"User Query: {user_query}")
-    y -= 15
-    c.drawString(50, y, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    y -= 30
-
-    content_width = int(width - 100)  # left margin 50, right margin 50
-
-    # Clinical Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Clinical Trials Summary")
-    y -= 20
-    c.setFont("Helvetica", 10)
-    clinical_text = results.get("clinical", {}).get("summary", "No clinical summary available.")
-    y = _draw_wrapped_text(c, clinical_text, 50, y, content_width, line_height=14)
-    y -= 10
-
-    # Patent Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Patent Landscape Summary")
-    y -= 20
-    c.setFont("Helvetica", 10)
-    patent_text = results.get("patent", {}).get("summary", "No patent summary available.")
-    y = _draw_wrapped_text(c, patent_text, 50, y, content_width, line_height=14)
-    y -= 10
-
-    # Market Section
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Market Overview")
-    y -= 20
-    c.setFont("Helvetica", 10)
+    story = []
+    
+    # 1. Header Block
+    story.append(Paragraph("Pharma Intelligence Report", title_style))
+    story.append(Paragraph(
+        f"Generated by Agentic Decision Support System  |  Date: {datetime.now().strftime('%B %d, %Y - %H:%M')}",
+        subtitle_style
+    ))
+    
+    # Query Summary Card
+    query_content = [
+        [Paragraph(f"<b>Target Research Query:</b> {user_query}", body_style)]
+    ]
+    query_table = Table(query_content, colWidths=[515])
+    query_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('PADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(query_table)
+    story.append(Spacer(1, 15))
+    
+    # 2. Executive Recommendation (Callout Box)
+    story.append(Paragraph("Executive Recommendation", h1_style))
+    conclusion_text = results.get("conclusion", "No combined conclusion was generated.")
+    conclusion_content = [
+        [Paragraph(conclusion_text, conclusion_style)]
+    ]
+    conclusion_table = Table(conclusion_content, colWidths=[515])
+    conclusion_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fdfa')), # Light teal background
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#0d9488')), # Teal border
+        ('LINELEFT', (0, 0), (0, -1), 4, colors.HexColor('#0d9488')), # Thick left border
+        ('PADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(conclusion_table)
+    story.append(Spacer(1, 15))
+    
+    # 3. Clinical Trials Section
+    story.append(Paragraph("Clinical Evidence Assessment", h1_style))
+    clinical_summary = results.get("clinical", {}).get("summary", "No clinical summary available.")
+    story.append(Paragraph(clinical_summary, body_style))
+    
+    clinical_df = results.get("clinical", {}).get("trials", None)
+    if isinstance(clinical_df, pd.DataFrame) and not clinical_df.empty:
+        # Convert to list and wrap strings in Paragraph flowables
+        data = [[Paragraph(f"<b>{col}</b>", table_header_style) for col in clinical_df.columns]]
+        for _, row in clinical_df.iterrows():
+            row_cells = []
+            for col in clinical_df.columns:
+                val = str(row[col])
+                row_cells.append(Paragraph(val, table_cell_style))
+            data.append(row_cells)
+            
+        clinical_table = Table(data, colWidths=[75, 110, 60, 75, 110, 85])
+        clinical_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+            ('PADDING', (0, 0), (-1, -1), 5),
+        ]))
+        story.append(clinical_table)
+    story.append(Spacer(1, 15))
+    
+    # 4. Patent Section
+    story.append(Paragraph("Intellectual Property & FTO Analysis", h1_style))
+    patent_summary = results.get("patent", {}).get("summary", "No patent summary available.")
+    story.append(Paragraph(patent_summary, body_style))
+    
+    patent_df = results.get("patent", {}).get("patents", None)
+    if isinstance(patent_df, pd.DataFrame) and not patent_df.empty:
+        data = [[Paragraph(f"<b>{col}</b>", table_header_style) for col in patent_df.columns]]
+        for _, row in patent_df.iterrows():
+            row_cells = []
+            for col in patent_df.columns:
+                val = str(row[col])
+                row_cells.append(Paragraph(val, table_cell_style))
+            data.append(row_cells)
+            
+        patent_table = Table(data, colWidths=[85, 110, 65, 65, 80, 110])
+        patent_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+            ('PADDING', (0, 0), (-1, -1), 5),
+        ]))
+        story.append(patent_table)
+    story.append(Spacer(1, 15))
+    
+    # 5. Market Section
+    story.append(Paragraph("Market Sizing & Commercial Potential", h1_style))
     market_summary = results.get("market", {}).get("summary", "No market summary available.")
-    y = _draw_wrapped_text(c, market_summary, 50, y, content_width, line_height=14)
-
-    # Finalize PDF
-    c.showPage()
-    c.save()
-
+    story.append(Paragraph(market_summary, body_style))
+    
+    market_data = results.get("market", {}).get("market_data", {})
+    if market_data:
+        m_size = market_data.get("estimated_size", "N/A")
+        m_cagr = market_data.get("cagr", "N/A")
+        m_comp = market_data.get("competition_level", "N/A")
+        
+        # Sizing summary grid
+        sizing_content = [
+            [
+                Paragraph("<b>Estimated Market Size:</b>", table_cell_style), Paragraph(m_size, table_cell_style),
+                Paragraph("<b>Projected CAGR:</b>", table_cell_style), Paragraph(m_cagr, table_cell_style)
+            ],
+            [
+                Paragraph("<b>Competition Level:</b>", table_cell_style), Paragraph(m_comp, table_cell_style),
+                Paragraph("<b>Analysis Region:</b>", table_cell_style), Paragraph(results.get("patent", {}).get("geography", "Global"), table_cell_style)
+            ]
+        ]
+        sizing_table = Table(sizing_content, colWidths=[120, 137, 120, 138])
+        sizing_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(sizing_table)
+        
+    doc.build(story)
     return file_path
-
