@@ -1,580 +1,666 @@
-import streamlit as st
+import html
+from datetime import datetime
+
 import pandas as pd
+import streamlit as st
+
 from master_agent import run_master_agent
 from report.report_generator import generate_pdf_report
 
-# ---------- Page Configuration ----------
+
+# ============================================================
+# Page configuration
+# ============================================================
+
 st.set_page_config(
-    page_title="PharmIntel — Strategic Intelligence Platform",
-    page_icon="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>+</text></svg>",
+    page_title="PharmIntel",
+    page_icon="✚",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# ---------- Global CSS ----------
+
+# ============================================================
+# Styling
+# ============================================================
+
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-    /* ─── Reset & Base ─────────────────────────────────────────── */
+    :root {
+        --ink: #172033;
+        --muted: #667085;
+        --subtle: #98A2B3;
+        --line: #E4E7EC;
+        --panel: #FFFFFF;
+        --canvas: #F7F8FA;
+        --navy: #17324D;
+        --blue: #2F6FED;
+        --teal: #168F87;
+        --green: #198754;
+        --amber: #B7791F;
+        --red: #C24141;
+    }
+
     html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .stApp {
-        background-color: #07090f;
-        color: #d4dae8;
+        background: var(--canvas);
+        color: var(--ink);
     }
 
-    /* Thin, subtle scrollbar */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #1e2535; border-radius: 3px; }
+    .main .block-container {
+        max-width: 1440px;
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
+    }
 
-    /* ─── Top Nav Bar ───────────────────────────────────────────── */
-    .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.85rem 0rem;
-        border-bottom: 1px solid #141926;
-        margin-bottom: 2.5rem;
+    [data-testid="stSidebar"] {
+        background: #FFFFFF;
+        border-right: 1px solid var(--line);
     }
-    .topbar-brand {
+
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1.5rem;
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--ink) !important;
+        letter-spacing: -0.02em;
+    }
+
+    .brand {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 11px;
+        padding-bottom: 1.15rem;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 1.4rem;
     }
+
     .brand-mark {
-        width: 34px;
-        height: 34px;
-        background: #1456d4;
-        border-radius: 6px;
+        width: 32px;
+        height: 32px;
+        border: 1px solid #C8D5E3;
+        border-radius: 7px;
         display: flex;
         align-items: center;
         justify-content: center;
-    }
-    .brand-plus {
-        font-size: 1.5rem;
-        font-weight: 300;
-        color: #ffffff;
-        line-height: 1;
-        margin-top: -1px;
-    }
-    .brand-name {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #eef0f5;
-        letter-spacing: -0.01em;
-    }
-    .brand-division {
-        font-size: 0.7rem;
+        color: var(--navy);
+        font-size: 20px;
         font-weight: 500;
-        color: #5a6482;
+        background: #F8FAFC;
+    }
+
+    .brand-name {
+        color: var(--ink);
+        font-size: 1.02rem;
+        font-weight: 700;
+    }
+
+    .brand-sub {
+        color: var(--subtle);
+        font-size: 0.68rem;
+        margin-top: 2px;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-top: 1px;
     }
-    .topbar-status {
+
+    .sidebar-label {
+        color: #475467;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 1.4rem 0 0.55rem;
+    }
+
+    .sidebar-copy {
+        color: var(--muted);
+        font-size: 0.79rem;
+        line-height: 1.55;
+    }
+
+    .sample {
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        margin-bottom: 0.5rem;
+        background: #FCFCFD;
+    }
+
+    .sample-title {
+        font-size: 0.7rem;
+        color: #475467;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+    }
+
+    .sample-text {
+        font-size: 0.74rem;
+        color: var(--muted);
+        line-height: 1.45;
+    }
+
+    .topline {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 8px;
-        background: #0c1120;
-        border: 1px solid #1b2540;
-        border-radius: 6px;
-        padding: 6px 14px;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid var(--line);
+        margin-bottom: 2.1rem;
     }
+
+    .eyebrow {
+        color: #667085;
+        font-size: 0.68rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+    }
+
+    .date-label {
+        color: var(--subtle);
+        font-size: 0.72rem;
+        font-family: "IBM Plex Mono", monospace;
+    }
+
+    .hero-title {
+        font-size: 2.15rem;
+        line-height: 1.15;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .hero-copy {
+        color: var(--muted);
+        font-size: 0.94rem;
+        line-height: 1.65;
+        max-width: 760px;
+        margin: 0.65rem 0 1.65rem;
+    }
+
+    .query-label {
+        color: #344054;
+        font-size: 0.73rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        margin-bottom: 0.45rem;
+    }
+
+    textarea {
+        background: #FFFFFF !important;
+        color: var(--ink) !important;
+        border: 1px solid #D0D5DD !important;
+        border-radius: 8px !important;
+        font-size: 0.91rem !important;
+        line-height: 1.55 !important;
+    }
+
+    textarea:focus {
+        border-color: var(--blue) !important;
+        box-shadow: 0 0 0 2px rgba(47, 111, 237, 0.10) !important;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background: var(--navy) !important;
+        border: 1px solid var(--navy) !important;
+        color: white !important;
+        border-radius: 7px !important;
+        font-weight: 600 !important;
+        min-height: 42px;
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        background: #214865 !important;
+        border-color: #214865 !important;
+    }
+
+    div.stDownloadButton > button {
+        background: white !important;
+        color: var(--navy) !important;
+        border: 1px solid #C8D2DC !important;
+        border-radius: 7px !important;
+        font-weight: 600 !important;
+    }
+
+    .section-title {
+        color: #344054;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin: 1.9rem 0 0.8rem;
+        padding-bottom: 0.55rem;
+        border-bottom: 1px solid var(--line);
+    }
+
+
+    /* Native Streamlit metric cards */
+    [data-testid="stMetric"] {
+        background: #FFFFFF !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 8px !important;
+        padding: 0.9rem 1rem !important;
+        min-height: 92px;
+    }
+
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricLabel"] p,
+    [data-testid="stMetricLabel"] div {
+        color: #667085 !important;
+    }
+
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] div {
+        color: var(--ink) !important;
+    }
+
+    [data-testid="stMetricDelta"],
+    [data-testid="stMetricDelta"] div {
+        color: #667085 !important;
+    }
+
+    /* Light, readable tab labels */
+    button[data-baseweb="tab"],
+    button[data-baseweb="tab"] p {
+        color: #667085 !important;
+        font-weight: 500 !important;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"],
+    button[data-baseweb="tab"][aria-selected="true"] p {
+        color: var(--navy) !important;
+        font-weight: 650 !important;
+    }
+
+    /* Stable light-theme clinical table */
+    .trial-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #FFFFFF;
+        margin: 0.7rem 0 0.9rem;
+    }
+
+    .trial-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+        color: var(--ink);
+    }
+
+    .trial-table th {
+        background: #F8FAFC;
+        color: #475467;
+        font-weight: 650;
+        text-align: left;
+        padding: 0.7rem 0.65rem;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+    }
+
+    .trial-table td {
+        color: var(--ink);
+        background: #FFFFFF;
+        padding: 0.72rem 0.65rem;
+        border-bottom: 1px solid #EEF1F4;
+        vertical-align: top;
+        line-height: 1.35;
+    }
+
+    .trial-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .trial-id {
+        color: var(--navy);
+        font-family: "IBM Plex Mono", monospace;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .trial-title {
+        min-width: 360px;
+    }
+
+    .trial-status {
+        color: #176B4D;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .trial-phase {
+        white-space: nowrap;
+        font-weight: 600;
+    }
+
+
+    .coverage-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin: 0.75rem 0 1.1rem;
+    }
+
+    .coverage-card {
+        background: #FFFFFF;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.75rem 0.9rem;
+    }
+
+    .coverage-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .coverage-name {
+        color: #344054;
+        font-size: 0.76rem;
+        font-weight: 650;
+    }
+
+    .coverage-detail {
+        color: #98A2B3;
+        font-size: 0.68rem;
+        line-height: 1.4;
+        margin-top: 0.28rem;
+    }
+
+    .scope-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 0.6rem 0 1.15rem;
+    }
+
+    .scope-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.32rem;
+        padding: 0.28rem 0.55rem;
+        border: 1px solid #DCE3EA;
+        border-radius: 999px;
+        background: #FFFFFF;
+        color: #475467;
+        font-size: 0.69rem;
+    }
+
+    .scope-chip strong {
+        color: #344054;
+        font-weight: 650;
+    }
+
+    .assessment-kicker {
+        color: #667085;
+        font-size: 0.69rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+
+    .hero-rule {
+        height: 1px;
+        background: var(--line);
+        margin: 0.1rem 0 1.2rem;
+    }
+
+    .query-meta {
+        color: #98A2B3;
+        font-size: 0.69rem;
+        margin-top: 0.45rem;
+    }
+
+    .empty-state {
+        text-align: center;
+        border: 1px dashed #D0D5DD;
+        border-radius: 8px;
+        padding: 1.25rem;
+        background: #FCFCFD;
+    }
+
+    .empty-state-title {
+        color: #344054;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+
+    .empty-state-copy {
+        color: #667085;
+        font-size: 0.74rem;
+        line-height: 1.5;
+        margin-top: 0.25rem;
+    }
+
+    @media (max-width: 900px) {
+        .coverage-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .status-strip.status-warning {
+        background: #FFFAEB;
+        border-color: #F3D28A;
+        color: #8A5A00;
+    }
+
+    .status-dot-warning {
+        background: #C58A00 !important;
+    }
+
+    .status-strip {
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+        padding: 0.7rem 0.85rem;
+        border: 1px solid #DCE5EE;
+        border-radius: 7px;
+        background: #F8FAFC;
+        color: #475467;
+        font-size: 0.78rem;
+        margin-bottom: 1.1rem;
+    }
+
     .status-dot {
         width: 7px;
         height: 7px;
-        background: #2fcf78;
         border-radius: 50%;
-        box-shadow: 0 0 6px #2fcf78;
-        animation: pulse 2.5s ease-in-out infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-    .status-label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #2fcf78;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    .topbar-meta {
-        font-size: 0.75rem;
-        color: #3d4a65;
-        font-family: 'IBM Plex Mono', monospace;
+        background: var(--green);
+        flex-shrink: 0;
     }
 
-    /* ─── Page Title Block ─────────────────────────────────────── */
-    .page-title {
-        font-size: 2.1rem;
-        font-weight: 700;
-        color: #eef0f5;
-        letter-spacing: -0.03em;
-        line-height: 1.15;
-        margin: 0;
-    }
-    .page-subtitle {
-        font-size: 0.95rem;
-        font-weight: 400;
-        color: #5a6482;
-        margin-top: 0.5rem;
-        margin-bottom: 2rem;
-        max-width: 680px;
-        line-height: 1.6;
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin: 0.8rem 0 1.25rem;
     }
 
-    /* ─── Sidebar ───────────────────────────────────────────────── */
-    [data-testid="stSidebar"] {
-        background-color: #050710;
-        border-right: 1px solid #101525;
-    }
-    .sidebar-logo {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding-bottom: 1.25rem;
-        margin-bottom: 1.25rem;
-        border-bottom: 1px solid #101525;
-    }
-    .sidebar-logo-mark {
-        width: 28px;
-        height: 28px;
-        background: #1456d4;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        font-weight: 300;
-        color: #fff;
-        line-height: 1;
-    }
-    .sidebar-logo-text {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #c8cfe0;
-    }
-    .sidebar-section-label {
-        font-size: 0.65rem;
-        font-weight: 700;
-        color: #3d4a65;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        margin-bottom: 0.75rem;
-        margin-top: 1.5rem;
-    }
-    .sidebar-desc {
-        font-size: 0.82rem;
-        color: #5a6482;
-        line-height: 1.6;
-    }
-    .sample-query {
-        background: #0c1120;
-        border: 1px solid #151e35;
-        border-left: 3px solid #1456d4;
-        border-radius: 0 6px 6px 0;
-        padding: 10px 12px;
-        margin-bottom: 10px;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-    .sample-query:hover { background: #101828; }
-    .sq-label {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #5882e0;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 4px;
-    }
-    .sq-text {
-        font-size: 0.78rem;
-        color: #8a94b0;
-        line-height: 1.45;
-        font-style: italic;
-    }
-
-    /* ─── Query Panel ───────────────────────────────────────────── */
-    .panel-label {
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: #3d4a65;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        margin-bottom: 0.6rem;
-    }
-
-    /* ─── Execute Button ────────────────────────────────────────── */
-    div.stButton > button[kind="primary"] {
-        background: #1456d4 !important;
-        border: none !important;
-        border-radius: 6px !important;
-        color: #ffffff !important;
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        letter-spacing: 0.01em !important;
-        padding: 0.65rem 1.5rem !important;
-        transition: background 0.2s ease, box-shadow 0.2s ease !important;
-        box-shadow: 0 2px 12px rgba(20, 86, 212, 0.3) !important;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background: #1a66f5 !important;
-        box-shadow: 0 4px 18px rgba(20, 86, 212, 0.45) !important;
-    }
-    div.stButton > button[kind="primary"]:active {
-        background: #1148b8 !important;
-    }
-
-    /* ─── Download Button ───────────────────────────────────────── */
-    div.stDownloadButton > button {
-        background: transparent !important;
-        border: 1px solid #1e2d50 !important;
-        border-radius: 6px !important;
-        color: #8aa8e8 !important;
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 500 !important;
-        font-size: 0.88rem !important;
-        transition: all 0.2s ease !important;
-    }
-    div.stDownloadButton > button:hover {
-        background: #0e1830 !important;
-        border-color: #2a4080 !important;
-        color: #afc8f5 !important;
-    }
-
-    /* ─── Success / Spinner Overrides ───────────────────────────── */
-    div[data-testid="stAlert"] {
-        background: #071c12 !important;
-        border: 1px solid #0d3320 !important;
-        border-radius: 6px !important;
-        color: #3ae880 !important;
-    }
-
-    /* ─── Pipeline Execution Bar ────────────────────────────────── */
-    .pipeline-bar {
-        display: flex;
-        align-items: center;
-        background: #0c1120;
-        border: 1px solid #141926;
+    .metric {
+        background: white;
+        border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 1.2rem 1.6rem;
-        margin: 1.5rem 0 2rem 0;
-        gap: 0;
-    }
-    .pipe-step {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-    }
-    .pipe-node {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 1.5px solid #1e2d50;
-        background: #0a1020;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .pipe-node.done {
-        border-color: #1456d4;
-        background: #0e1f45;
-    }
-    .pipe-node svg {
-        width: 16px;
-        height: 16px;
-        stroke: #3d4a65;
-        fill: none;
-        stroke-width: 1.5;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-    }
-    .pipe-node.done svg { stroke: #5882e0; }
-    .pipe-label {
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: #3d4a65;
-        text-align: center;
-        white-space: nowrap;
-    }
-    .pipe-label.done { color: #8aa8e8; }
-    .pipe-sub {
-        font-size: 0.65rem;
-        color: #272f45;
-        text-align: center;
-    }
-    .pipe-sub.done { color: #3d5080; }
-    .pipe-connector {
-        flex: 0.5;
-        height: 1px;
-        background: linear-gradient(90deg, #1e2d50 0%, #1456d4 100%);
-        margin-bottom: 28px;
+        padding: 1rem 1.05rem;
+        min-height: 98px;
     }
 
-    /* ─── Console Log Window ────────────────────────────────────── */
-    .console-wrap {
-        background: #060912;
-        border: 1px solid #141926;
-        border-radius: 8px;
-        overflow: hidden;
-        margin: 1.5rem 0 2rem 0;
-    }
-    .console-titlebar {
-        background: #0a0d18;
-        border-bottom: 1px solid #141926;
-        padding: 0.55rem 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .console-titlebar-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .console-title {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 0.72rem;
-        color: #3d4a65;
-    }
-    .console-badge {
-        font-size: 0.62rem;
-        font-weight: 600;
-        color: #2fcf78;
-        background: #071c12;
-        border: 1px solid #0d3320;
-        border-radius: 4px;
-        padding: 1px 7px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-    .console-body {
-        padding: 1.1rem 1.3rem;
-        max-height: 260px;
-        overflow-y: auto;
-    }
-    .log-line {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 0.78rem;
-        line-height: 1.6;
-        margin-bottom: 4px;
-    }
-    .log-line .log-ts {
-        color: #2a3550;
-        margin-right: 10px;
-        font-size: 0.72rem;
-    }
-
-    /* ─── Recommendation Card ───────────────────────────────────── */
-    .rec-card {
-        background: #0a1020;
-        border: 1px solid #141f38;
-        border-left: 3px solid #1456d4;
-        border-radius: 0 8px 8px 0;
-        padding: 1.4rem 1.6rem;
-        margin: 1.5rem 0 2rem 0;
-    }
-    .rec-card-label {
+    .metric-label {
+        color: #667085;
         font-size: 0.68rem;
-        font-weight: 700;
-        color: #5882e0;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.12em;
-        margin-bottom: 0.7rem;
+        letter-spacing: 0.06em;
     }
-    .rec-card-text {
-        font-size: 0.95rem;
-        color: #b0bcda;
+
+    .metric-value {
+        color: var(--ink);
+        font-size: 1.35rem;
+        font-weight: 700;
+        margin-top: 0.48rem;
+        line-height: 1.1;
+    }
+
+    .metric-note {
+        color: var(--subtle);
+        font-size: 0.69rem;
+        margin-top: 0.3rem;
+    }
+
+    .recommendation {
+        background: white;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--navy);
+        border-radius: 0 8px 8px 0;
+        padding: 1.15rem 1.3rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .recommendation-title {
+        color: #344054;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        margin-bottom: 0.55rem;
+    }
+
+    .recommendation-text {
+        color: #475467;
+        font-size: 0.9rem;
         line-height: 1.7;
         margin: 0;
     }
 
-    /* ─── Section Heading ───────────────────────────────────────── */
-    .section-heading {
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: #3d4a65;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        padding-bottom: 0.6rem;
-        border-bottom: 1px solid #101525;
-        margin-bottom: 1.25rem;
-        margin-top: 2rem;
+    .source-box {
+        background: #FCFCFD;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 0.75rem 0.9rem;
+        margin-top: 0.8rem;
     }
 
-    /* ─── Tabs ──────────────────────────────────────────────────── */
-    .stTabs [data-baseweb="tab-list"] {
-        background: transparent;
-        border-bottom: 1px solid #141926;
-        gap: 0;
-        padding-bottom: 0;
+    .source-name {
+        color: #344054;
+        font-size: 0.76rem;
+        font-weight: 600;
     }
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border: none;
-        border-bottom: 2px solid transparent;
-        border-radius: 0;
-        color: #3d4a65;
-        font-size: 0.82rem;
-        font-weight: 500;
-        padding: 0.65rem 1.25rem;
-        transition: color 0.15s ease;
-        margin-bottom: -1px;
-    }
-    .stTabs [data-baseweb="tab"]:hover { color: #8aa8e8; }
-    .stTabs [aria-selected="true"] {
-        color: #8aa8e8 !important;
-        border-bottom: 2px solid #1456d4 !important;
-        background: transparent !important;
-        font-weight: 600 !important;
-    }
-    .stTabs [data-baseweb="tab-highlight"] { display: none; }
-    .stTabs [data-baseweb="tab-border"] { display: none; }
 
-    /* ─── Metrics Row ───────────────────────────────────────────── */
-    .metrics-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1px;
-        background: #141926;
-        border: 1px solid #141926;
-        border-radius: 8px;
-        overflow: hidden;
-        margin: 1.5rem 0;
-    }
-    .metric-cell {
-        background: #0a0d18;
-        padding: 1.2rem 1.4rem;
-        transition: background 0.2s;
-    }
-    .metric-cell:hover { background: #0c1020; }
-    .metric-cell-label {
+    .source-meta {
+        color: var(--subtle);
         font-size: 0.68rem;
-        font-weight: 600;
-        color: #3d4a65;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        margin-bottom: 0.5rem;
-    }
-    .metric-cell-value {
-        font-size: 1.45rem;
-        font-weight: 700;
-        color: #d4dae8;
-        letter-spacing: -0.02em;
-        line-height: 1;
-    }
-    .metric-cell-sub {
-        font-size: 0.7rem;
-        color: #3d4a65;
-        margin-top: 4px;
-    }
-
-    /* ─── Driver List ───────────────────────────────────────────── */
-    .driver-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #101525;
-    }
-    .driver-item:last-child { border-bottom: none; }
-    .driver-mark {
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: #1456d4;
-        margin-top: 6px;
-        flex-shrink: 0;
-    }
-    .driver-text {
-        font-size: 0.84rem;
-        color: #7888a8;
+        margin-top: 0.2rem;
         line-height: 1.5;
     }
 
-    /* ─── Document Export Card ──────────────────────────────────── */
-    .export-card {
-        background: #0a0d18;
-        border: 1px solid #141926;
-        border-radius: 8px;
-        padding: 1.4rem 1.6rem;
-        margin-top: 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 2rem;
-        flex-wrap: wrap;
-    }
-    .export-card-meta {
-        flex: 1;
-        min-width: 250px;
-    }
-    .export-card-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #c8cfe0;
-        margin-bottom: 0.4rem;
-    }
-    .export-card-desc {
+    .notice {
+        padding: 0.85rem 1rem;
+        border: 1px solid #E4E7EC;
+        background: #F9FAFB;
+        border-radius: 7px;
+        color: #667085;
         font-size: 0.8rem;
-        color: #3d4a65;
+        line-height: 1.55;
+    }
+
+    .notice-warning {
+        border-color: #E8D8B8;
+        background: #FFFBF2;
+        color: #7A5A1A;
+    }
+
+    .notice-info {
+        border-color: #CFE0F5;
+        background: #F6FAFF;
+        color: #315B87;
+    }
+
+    .evidence-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+        align-items: start;
+        border-bottom: 1px solid var(--line);
+        padding: 0.8rem 0;
+    }
+
+    .evidence-title {
+        color: #344054;
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .evidence-detail {
+        color: #667085;
+        font-size: 0.74rem;
+        line-height: 1.5;
+        margin-top: 0.18rem;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.2rem 0.48rem;
+        border-radius: 999px;
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+    }
+
+    .badge-green { background: #ECFDF3; color: #16794C; }
+    .badge-amber { background: #FFFAEB; color: #946200; }
+    .badge-red { background: #FEF3F2; color: #B42318; }
+    .badge-gray { background: #F2F4F7; color: #667085; }
+    .badge-blue { background: #EFF6FF; color: #2459A6; }
+
+    .footnote {
+        color: #98A2B3;
+        font-size: 0.68rem;
+        line-height: 1.5;
+        margin-top: 0.7rem;
+    }
+
+    .trace {
+        background: #172033;
+        border-radius: 7px;
+        padding: 0.8rem 1rem;
+        max-height: 280px;
+        overflow-y: auto;
+    }
+
+    .trace-line {
+        color: #D0D5DD;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 0.68rem;
+        line-height: 1.7;
+        padding: 0.08rem 0;
+    }
+
+    .footer {
+        border-top: 1px solid var(--line);
+        margin-top: 2.5rem;
+        padding-top: 1rem;
+        color: #98A2B3;
+        font-size: 0.68rem;
         line-height: 1.5;
     }
-    .export-tags {
-        display: flex;
-        gap: 8px;
-        margin-top: 0.7rem;
-        flex-wrap: wrap;
-    }
-    .export-tag {
-        font-size: 0.65rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #3d5080;
-        border: 1px solid #1e2d50;
-        border-radius: 4px;
-        padding: 2px 8px;
-    }
-    .export-btn-wrap {
-        min-width: 200px;
-    }
 
-    /* ─── Dataframe Overrides ───────────────────────────────────── */
-    .stDataFrame, [data-testid="stDataFrame"] {
-        border: 1px solid #141926 !important;
-        border-radius: 8px !important;
-        overflow: hidden;
-    }
-
-    /* ─── Divider ───────────────────────────────────────────────── */
-    hr {
-        border: none;
-        border-top: 1px solid #101525 !important;
-        margin: 2rem 0 !important;
-    }
-
-    /* ─── Text area ─────────────────────────────────────────────── */
-    textarea {
-        font-family: 'Inter', sans-serif !important;
-        font-size: 0.9rem !important;
-        background-color: #0a0d18 !important;
-        border: 1px solid #1b2540 !important;
-        border-radius: 6px !important;
-        color: #c8cfe0 !important;
-    }
-    textarea:focus {
-        border-color: #1456d4 !important;
-        box-shadow: 0 0 0 2px rgba(20, 86, 212, 0.15) !important;
+    @media (max-width: 900px) {
+        .metric-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .hero-title {
+            font-size: 1.7rem;
+        }
     }
     </style>
     """,
@@ -582,382 +668,1141 @@ st.markdown(
 )
 
 
-# ══════════════════════════════════════════════════════════════════
-# SVG icons (inline, no emoji)
-# ══════════════════════════════════════════════════════════════════
-SVG = {
-    "orchestrator": '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M6 20v-1a6 6 0 0112 0v1"/><path d="M2 12h4M18 12h4"/></svg>',
-    "clinical":     '<svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2h-4"/><path d="M9 3a3 3 0 006 0"/><path d="M8 12h8M12 8v8"/></svg>',
-    "patent":       '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>',
-    "market":       '<svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
-    "synthesis":    '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>',
-    "size":         '<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
-    "growth":       '<svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
-    "competition":  '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>',
-    "region":       '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
-}
+# ============================================================
+# Utility functions
+# ============================================================
+
+def esc(value) -> str:
+    return html.escape(str(value)) if value is not None else ""
 
 
-def pipe_step(icon_key: str, label: str, sub: str) -> str:
+def badge(text: str, kind: str = "gray") -> str:
+    return f'<span class="badge badge-{kind}">{esc(text)}</span>'
+
+
+def risk_badge(risk: str) -> str:
+    value = str(risk or "Unknown")
+    low = value.lower()
+
+    if "high" in low:
+        return badge(value, "red")
+    if "moderate" in low or "medium" in low:
+        return badge(value, "amber")
+    if "low" in low:
+        return badge(value, "green")
+
+    return badge(value, "gray")
+
+
+def status_badge(status: str) -> str:
+    value = str(status or "Unknown")
+    low = value.lower()
+
+    if "recruiting" in low:
+        return badge(value, "green")
+    if "active" in low:
+        return badge(value, "blue")
+    if "completed" in low:
+        return badge(value, "gray")
+    if "not yet" in low:
+        return badge(value, "amber")
+
+    return badge(value, "gray")
+
+
+def format_phase(phases) -> str:
+    if isinstance(phases, list):
+        return ", ".join(phases) if phases else "Not reported"
+    if phases is None:
+        return "Not reported"
+    return str(phases)
+
+
+def render_source(source: dict, label: str = "Source") -> None:
+    if not source:
+        st.markdown(
+            '<div class="source-box"><div class="source-name">'
+            f'{esc(label)}: unavailable</div></div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    if isinstance(source, str):
+        name = source
+        url = None
+        retrieved = None
+    else:
+        name = source.get("name", "Source")
+        url = source.get("url")
+        retrieved = source.get("retrieved_at")
+
+    link = ""
+    if url:
+        link = (
+            f'<div class="source-meta">'
+            f'<a href="{esc(url)}" target="_blank">Open source</a>'
+            f'</div>'
+        )
+
+    retrieved_text = ""
+    if retrieved:
+        retrieved_text = (
+            f'<div class="source-meta">Retrieved: {esc(retrieved)}</div>'
+        )
+
+    st.markdown(
+        f"""
+        <div class="source-box">
+            <div class="source-name">{esc(label)} · {esc(name)}</div>
+            {retrieved_text}
+            {link}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def metric_card(label: str, value: str, note: str = "") -> str:
     return f"""
-    <div class="pipe-step">
-        <div class="pipe-node done">{SVG[icon_key]}</div>
-        <div class="pipe-label done">{label}</div>
-        <div class="pipe-sub done">{sub}</div>
-    </div>"""
+    <div class="metric">
+        <div class="metric-label">{esc(label)}</div>
+        <div class="metric-value">{esc(value)}</div>
+        <div class="metric-note">{esc(note)}</div>
+    </div>
+    """
 
 
-def pipe_connector() -> str:
-    return '<div class="pipe-connector"></div>'
+def run_analysis_with_retry(user_query: str) -> dict:
+    """Run the orchestrator and retry once when ClinicalTrials.gov times out."""
+    results = run_master_agent(user_query)
+    clinical = results.get("clinical", {})
+    error = str(clinical.get("error", ""))
+
+    timeout_markers = (
+        "timed out",
+        "timeout",
+        "request timed out",
+    )
+
+    if error and any(marker in error.lower() for marker in timeout_markers):
+        retry_results = run_master_agent(user_query)
+        retry_clinical = retry_results.get("clinical", {})
+        retry_error = str(retry_clinical.get("error", ""))
+
+        if retry_clinical.get("trials") or not retry_error:
+            return retry_results
+
+        trace = list(results.get("trace", []))
+        trace.append(
+            "[Clinical Agent]: Initial registry request timed out; retry also failed."
+        )
+        results["trace"] = trace
+
+    return results
 
 
-def log_color(line: str) -> str:
-    line_lower = line.lower()
-    if "master orchestrator" in line_lower:
-        return "#5882e0"
-    elif "clinical" in line_lower:
-        return "#4db8a0"
-    elif "patent" in line_lower:
-        return "#9b7ce0"
-    elif "market" in line_lower:
-        return "#d4a443"
-    elif "compil" in line_lower or "success" in line_lower or "assembl" in line_lower:
-        return "#2fcf78"
-    return "#5a6a88"
+def get_clinical_summary(clinical: dict) -> str:
+    trials = clinical.get("trials", [])
+
+    if clinical.get("error"):
+        return clinical["error"]
+
+    parsed = clinical.get("parsed_query", {})
+    count = clinical.get("trial_count", len(trials))
+
+    parts = [f"{count} matching clinical trial(s)"]
+
+    if parsed.get("condition"):
+        parts.append(f"for {parsed['condition']}")
+
+    if parsed.get("intervention"):
+        parts.append(f"involving {parsed['intervention']}")
+
+    if parsed.get("phase"):
+        parts.append(parsed["phase"])
+
+    if parsed.get("status"):
+        parts.append(parsed["status"].replace("_", " ").lower())
+
+    if parsed.get("location"):
+        parts.append(f"in {parsed['location']}")
+
+    return " ".join(parts) + "."
 
 
-def format_log_line(idx: int, line: str) -> str:
-    ts = f"[{idx:02d}]"
-    escaped = line.replace("<", "&lt;").replace(">", "&gt;")
-    color = log_color(line)
+def render_trials_table(trials_df: pd.DataFrame) -> str:
+    """Render a predictable light-theme table for registry results."""
+    if trials_df.empty:
+        return ""
+
+    columns = [
+        ("NCT ID", "NCT ID"),
+        ("Title", "Trial"),
+        ("Status", "Status"),
+        ("Phase", "Phase"),
+        ("Enrollment", "Enrollment"),
+        ("Sponsor", "Sponsor"),
+        ("Start", "Start"),
+    ]
+
+    header = "".join(f"<th>{esc(label)}</th>" for _, label in columns)
+    rows = []
+
+    for _, row in trials_df.iterrows():
+        cells = []
+
+        for key, _ in columns:
+            value = row.get(key, "—")
+            if pd.isna(value) or value in ("", None):
+                value = "—"
+
+            value = esc(str(value))
+
+            if key == "NCT ID":
+                raw_id = str(row.get("NCT ID", "")).strip()
+                if raw_id and raw_id != "—":
+                    href = f"https://clinicaltrials.gov/study/{esc(raw_id)}"
+                    value = (
+                        f'<a class="trial-id" href="{href}" target="_blank">'
+                        f'{value}</a>'
+                    )
+                else:
+                    value = f'<span class="trial-id">{value}</span>'
+            elif key == "Title":
+                value = f'<div class="trial-title">{value}</div>'
+            elif key == "Status":
+                value = f'<span class="trial-status">{value}</span>'
+            elif key == "Phase":
+                value = f'<span class="trial-phase">{value}</span>'
+
+            cells.append(f"<td>{value}</td>")
+
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+
     return (
-        f'<div class="log-line">'
-        f'<span class="log-ts">{ts}</span>'
-        f'<span style="color:{color};">{escaped}</span>'
-        f'</div>'
+        '<div class="trial-table-wrap">'
+        '<table class="trial-table">'
+        f"<thead><tr>{header}</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table></div>"
     )
 
 
-def metric_cell(label: str, value: str, sub: str, icon_svg: str) -> str:
-    return f"""
-    <div class="metric-cell">
-        <div class="metric-cell-label">{label}</div>
-        <div class="metric-cell-value">{value}</div>
-        <div class="metric-cell-sub">{sub}</div>
-    </div>"""
+def normalize_trials(trials) -> pd.DataFrame:
+    if not trials:
+        return pd.DataFrame()
+
+    rows = []
+
+    for trial in trials:
+        rows.append(
+            {
+                "NCT ID": trial.get("nct_id", ""),
+                "Title": trial.get("title", ""),
+                "Status": trial.get("status", "Not reported"),
+                "Phase": format_phase(trial.get("phase")),
+                "Enrollment": trial.get("enrollment", "Not reported"),
+                "Sponsor": trial.get("sponsor", "Not reported"),
+                "Start": trial.get("start_date", "Not reported"),
+            }
+        )
+
+    return pd.DataFrame(rows)
 
 
-# ══════════════════════════════════════════════════════════════════
-# SIDEBAR
-# ══════════════════════════════════════════════════════════════════
-with st.sidebar:
+def normalize_patents(patents) -> pd.DataFrame:
+    if patents is None:
+        return pd.DataFrame()
+
+    if not isinstance(patents, pd.DataFrame):
+        try:
+            patents = pd.DataFrame(patents)
+        except Exception:
+            return pd.DataFrame()
+
+    if patents.empty:
+        return patents
+
+    preferred = [
+        "Patent ID",
+        "Title",
+        "Assignee",
+        "Status",
+        "Relevance Score",
+        "Risk Level",
+        "Publication Date",
+        "Source URL",
+    ]
+
+    columns = [
+        col for col in preferred
+        if col in patents.columns
+    ]
+
+    return patents[columns].copy()
+
+
+# ============================================================
+# Header
+# ============================================================
+
+now = datetime.now().strftime("%d %b %Y · %H:%M")
+
+nav_left, nav_mid, nav_right = st.columns([2.2, 3.6, 2.2])
+
+with nav_left:
     st.markdown(
         """
-        <div class="sidebar-logo">
-            <div class="sidebar-logo-mark">+</div>
-            <span class="sidebar-logo-text">PharmIntel</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="sidebar-section-label">About</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<p class="sidebar-desc">Multi-agent decision support platform for early-stage pharmaceutical '
-        'opportunity analysis. Coordinates autonomous agents across clinical, IP, and commercial domains '
-        'to deliver synthesized strategic briefs.</p>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown('<div class="sidebar-section-label">Analysis Settings</div>', unsafe_allow_html=True)
-    st.radio("FTO Detail Level", ["Executive Summary", "Full Patent Claims"], index=0, key="nav_detail")
-    st.selectbox("Mode", ["Standard Analysis", "Accelerated"], index=0)
-
-    st.markdown('<div class="sidebar-section-label">Reference Queries</div>', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <div class="sample-query">
-            <div class="sq-label">Oncology — US</div>
-            <div class="sq-text">Identify oncology small-molecule opportunities with low patent risk in the US over the next 5 years.</div>
-        </div>
-        <div class="sample-query">
-            <div class="sq-label">Metabolic — Europe</div>
-            <div class="sq-text">Evaluate metabolic diabetes opportunities for novel peptide formulations in EU.</div>
-        </div>
-        <div class="sample-query">
-            <div class="sq-label">Neurology — Japan</div>
-            <div class="sq-text">Identify neurology and Alzheimer's compounds with FTO clearance in Japan.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ══════════════════════════════════════════════════════════════════
-# TOPBAR
-# ══════════════════════════════════════════════════════════════════
-from datetime import datetime
-_now = datetime.now().strftime("%Y-%m-%d  %H:%M UTC+5:30")
-
-st.markdown(
-    f"""
-    <div class="topbar">
-        <div class="topbar-brand">
-            <div class="brand-mark"><span class="brand-plus">+</span></div>
-            <div>
-                <div class="brand-name">PharmIntel</div>
-                <div class="brand-division">Strategic Intelligence Platform</div>
+        <div style="padding-top:0.15rem;">
+            <div style="font-size:1.05rem;font-weight:750;color:#172033;">PharmIntel</div>
+            <div style="font-size:0.64rem;color:#98A2B3;letter-spacing:0.06em;text-transform:uppercase;">
+                Pharmaceutical intelligence
             </div>
         </div>
-        <div class="topbar-status">
-            <div class="status-dot"></div>
-            <span class="status-label">All Systems Operational</span>
+        """,
+        unsafe_allow_html=True,
+    )
+
+with nav_mid:
+    st.markdown(
+        """
+        <div style="text-align:center;padding-top:0.35rem;color:#667085;font-size:0.73rem;">
+            Research workspace&nbsp;&nbsp; · &nbsp;&nbsp;Evidence-led opportunity analysis
         </div>
-        <div class="topbar-meta">{_now}</div>
-    </div>
-    """,
+        """,
+        unsafe_allow_html=True,
+    )
+
+with nav_right:
+    st.markdown(
+        f"""
+        <div style="text-align:right;padding-top:0.35rem;color:#98A2B3;font-size:0.68rem;">
+            {now}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown('<div class="hero-rule"></div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<div class="eyebrow">Research workspace</div>',
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    '<h1 class="hero-title">Pharmaceutical Opportunity Intelligence</h1>',
+    unsafe_allow_html=True,
+)
 
-# ══════════════════════════════════════════════════════════════════
-# PAGE TITLE
-# ══════════════════════════════════════════════════════════════════
 st.markdown(
     """
-    <h1 class="page-title">Drug Opportunity Intelligence</h1>
-    <p class="page-subtitle">
-        Submit a research query to initiate coordinated analysis across clinical trial registries,
-        patent databases, and commercial market intelligence sources.
+    <p class="hero-copy">
+        Turn a research question into structured clinical, commercial and
+        intellectual-property evidence. Reported facts and derived analysis
+        are kept distinguishable throughout the workspace.
     </p>
     """,
     unsafe_allow_html=True,
 )
 
 
-# ══════════════════════════════════════════════════════════════════
-# QUERY INPUT
-# ══════════════════════════════════════════════════════════════════
-st.markdown('<div class="panel-label">Research Query</div>', unsafe_allow_html=True)
+# ============================================================
+# Query
+# ============================================================
 
-user_query = st.text_area(
-    label="query_input",
-    label_visibility="collapsed",
-    value="Identify oncology small-molecule opportunities with low patent risk in the US and EU over the next 5 years.",
-    height=100,
-    placeholder="Describe the therapeutic area, compound class, target geography, and risk parameters...",
+st.markdown(
+    '<div class="query-label">Research question</div>',
+    unsafe_allow_html=True,
 )
 
-col_btn, col_hint = st.columns([2, 5])
-with col_btn:
-    analyze_btn = st.button("Run Analysis", use_container_width=True, type="primary")
-with col_hint:
-    st.markdown(
-        '<p style="margin-top:10px; font-size:0.8rem; color:#3d4a65;">'
-        "The orchestrator will sequentially dispatch the Clinical, Patent, and Market agents, "
-        "then compile a synthesized strategic brief."
-        "</p>",
-        unsafe_allow_html=True,
+# ------------------------------------------------------------
+# Session state initialization
+# ------------------------------------------------------------
+if "user_query" not in st.session_state:
+    st.session_state["user_query"] = (
+        "Find recruiting Phase 3 obesity trials involving semaglutide in the US"
     )
 
+if "last_results" not in st.session_state:
+    st.session_state["last_results"] = None
 
-# ══════════════════════════════════════════════════════════════════
-# RESULTS
-# ══════════════════════════════════════════════════════════════════
-if analyze_btn and user_query:
+if "last_query" not in st.session_state:
+    st.session_state["last_query"] = ""
 
-    with st.spinner("Running coordinated analysis..."):
-        results = run_master_agent(user_query)
+user_query = st.text_area(
+    "Research question",
+    value=st.session_state["user_query"],
+    key="query_input",
+    height=96,
+    label_visibility="collapsed",
+    placeholder=(
+        "Example: Find recruiting Phase 3 obesity trials "
+        "involving semaglutide in the US"
+    ),
+)
 
-    st.success("Analysis complete. Strategic brief assembled.")
+analyze_col, help_col = st.columns([1.25, 4.75])
 
-    # ── Pipeline Execution Bar ──────────────────────────────────
-    st.markdown('<div class="section-heading">Execution Pipeline</div>', unsafe_allow_html=True)
-    pipeline_html = (
-        '<div class="pipeline-bar">'
-        + pipe_step("orchestrator", "Orchestrator", "Init")
-        + pipe_connector()
-        + pipe_step("clinical", "Clinical Agent", "Trial Scoping")
-        + pipe_connector()
-        + pipe_step("patent", "Patent Agent", "FTO Analysis")
-        + pipe_connector()
-        + pipe_step("market", "Market Agent", "Growth Forecast")
-        + pipe_connector()
-        + pipe_step("synthesis", "Synthesis", "Brief Compiled")
-        + '</div>'
-    )
-    st.markdown(pipeline_html, unsafe_allow_html=True)
-
-    # ── Console Trace ───────────────────────────────────────────
-    st.markdown('<div class="section-heading">Agent Execution Log</div>', unsafe_allow_html=True)
-    log_lines_html = "".join(
-        format_log_line(i + 1, line)
-        for i, line in enumerate(results.get("trace", []))
-    )
-    st.markdown(
-        f"""
-        <div class="console-wrap">
-            <div class="console-titlebar">
-                <div class="console-titlebar-left">
-                    <span class="console-title">orchestrator.log</span>
-                    <span class="console-badge">Completed</span>
-                </div>
-                <span style="font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:#2a3550;">
-                    {len(results.get("trace", []))} events
-                </span>
-            </div>
-            <div class="console-body">{log_lines_html}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+with analyze_col:
+    analyze_btn = st.button(
+        "Run analysis",
+        use_container_width=True,
+        type="primary",
     )
 
-    # ── Strategic Recommendation ─────────────────────────────────
-    st.markdown('<div class="section-heading">Strategic Recommendation</div>', unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <div class="rec-card">
-            <div class="rec-card-label">Consolidated Analysis</div>
-            <p class="rec-card-text">{results["conclusion"]}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ── Intelligence Tabs ────────────────────────────────────────
-    st.markdown('<div class="section-heading">Segment Intelligence</div>', unsafe_allow_html=True)
-    tab_clinical, tab_patent, tab_market = st.tabs(
-        ["Clinical Trials", "Patent & IP Landscape", "Market & Commercial Sizing"]
-    )
-
-    # — Tab 1: Clinical ——
-    with tab_clinical:
-        st.markdown('<div class="section-heading">Registry Summary</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<p style="font-size:0.88rem;color:#7888a8;line-height:1.7;">{results["clinical"]["summary"]}</p>',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown('<div class="section-heading">Representative Trials</div>', unsafe_allow_html=True)
-        trials_df = results["clinical"]["trials"].copy()
-
-        # Clean status indicators using text badges, no emoji
-        if "Status" in trials_df.columns:
-            trials_df["Status"] = trials_df["Status"].map(
-                lambda x: f"[ACTIVE] {x}" if "Recruiting" in x
-                else f"[DONE] {x}" if "Completed" in x
-                else f"[HOLD] {x}"
-            )
-        if "Phase" in trials_df.columns:
-            trials_df["Phase"] = trials_df["Phase"].map(
-                lambda x: f"III — {x.replace('Phase III', '').strip()}" if "Phase III" in x
-                else f"II — {x.replace('Phase II','').strip()}" if "Phase II" in x
-                else x
-            )
-
-        st.dataframe(trials_df, use_container_width=True, hide_index=True)
-
-    # — Tab 2: Patent ——
-    with tab_patent:
-        st.markdown('<div class="section-heading">IP Assessment</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<p style="font-size:0.88rem;color:#7888a8;line-height:1.7;">{results["patent"]["summary"]}</p>',
-            unsafe_allow_html=True,
-        )
-
-        st.markdown('<div class="section-heading">FTO Landscape</div>', unsafe_allow_html=True)
-        patents_df = results["patent"]["patents"].copy()
-
-        if "Risk Level" in patents_df.columns:
-            patents_df["Risk Level"] = patents_df["Risk Level"].map(
-                lambda x: f"HIGH — {x.replace('High','').strip()}" if "High" in x
-                else f"MOD — {x.replace('Moderate','').replace('Medium','').strip()}" if "Moderate" in x or "Medium" in x
-                else f"LOW — {x.replace('Low','').replace('(Expired)','').strip()}"
-            )
-        if "Status" in patents_df.columns:
-            patents_df["Status"] = patents_df["Status"].map(
-                lambda x: "Active" if "Active" in x else "Expired"
-            )
-
-        st.dataframe(patents_df, use_container_width=True, hide_index=True)
-
-    # — Tab 3: Market ——
-    with tab_market:
-        st.markdown('<div class="section-heading">Commercial Overview</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<p style="font-size:0.88rem;color:#7888a8;line-height:1.7;">{results["market"]["summary"]}</p>',
-            unsafe_allow_html=True,
-        )
-
-        market_data = results["market"]["market_data"]
-        geography = results.get("patent", {}).get("geography", "Global")
-
-        # Metrics row
-        metrics_html = (
-            '<div class="metrics-row">'
-            + metric_cell("Estimated Market Size", market_data["estimated_size"], "Current valuation", SVG["size"])
-            + metric_cell("Growth Rate (CAGR)", market_data["cagr"], "5-year projection", SVG["growth"])
-            + metric_cell("Competition Density", market_data["competition_level"], "Market participants", SVG["competition"])
-            + metric_cell("Primary Region", geography, "Analysis scope", SVG["region"])
-            + '</div>'
-        )
-        st.markdown(metrics_html, unsafe_allow_html=True)
-
-        # Chart + Drivers
-        p_col1, p_col2 = st.columns([3, 2])
-        with p_col1:
-            st.markdown(
-                '<div class="section-heading">5-Year Revenue Forecast (USD Million)</div>',
-                unsafe_allow_html=True,
-            )
-            proj_df = pd.DataFrame(market_data["projections"]).set_index("Year")
-            st.line_chart(proj_df, height=220)
-
-        with p_col2:
-            st.markdown(
-                '<div class="section-heading">Key Commercial Drivers</div>',
-                unsafe_allow_html=True,
-            )
-            drivers_html = "".join(
-                f'<div class="driver-item">'
-                f'<div class="driver-mark"></div>'
-                f'<span class="driver-text">{d}</span>'
-                f'</div>'
-                for d in market_data["key_drivers"]
-            )
-            st.markdown(drivers_html, unsafe_allow_html=True)
-
-    st.divider()
-
-    # ── Export Card ──────────────────────────────────────────────
-    pdf_path = generate_pdf_report(results, user_query)
-    with open(pdf_path, "rb") as f:
-        pdf_data = f.read()
-
+with help_col:
     st.markdown(
         """
-        <div class="export-card">
-            <div class="export-card-meta">
-                <div class="export-card-title">Executive Strategy Report</div>
-                <div class="export-card-desc">
-                    A formatted intelligence brief suitable for distribution to executive leadership,
-                    strategy committees, or external partners.
-                </div>
-                <div class="export-tags">
-                    <span class="export-tag">PDF</span>
-                    <span class="export-tag">A4 Format</span>
-                    <span class="export-tag">Confidential</span>
-                </div>
-            </div>
+        <div style="color:#667085;font-size:0.77rem;padding-top:0.72rem;">
+        The analysis runs the available domain agents and consolidates
+        their structured outputs into one research brief.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.download_button(
-        label="Download Report (PDF)",
-        data=pdf_data,
-        file_name="pharmintel_strategy_report.pdf",
-        mime="application/pdf",
-        use_container_width=True,
+
+# ============================================================
+# Analysis
+# ============================================================
+
+if analyze_btn:
+
+    st.session_state["user_query"] = user_query
+
+    if not user_query.strip():
+        st.warning("Enter a research question first.")
+        st.stop()
+
+    with st.spinner("Running analysis..."):
+        try:
+            results = run_analysis_with_retry(
+                user_query.strip()
+            )
+            st.session_state["last_results"] = results
+            st.session_state["last_query"] = user_query.strip()
+        except Exception as exc:
+            st.error(
+                "The analysis could not be completed."
+            )
+            st.exception(exc)
+            st.stop()
+
+    clinical = results.get("clinical", {})
+    patent = results.get("patent", {})
+    market = results.get("market", {})
+
+    clinical_trials = clinical.get("trials", [])
+    clinical_count = clinical.get(
+        "trial_count",
+        len(clinical_trials),
     )
+
+    market_data = market.get(
+        "market_data",
+        {},
+    )
+
+    patent_risk = patent.get(
+        "max_risk",
+        "Unknown",
+    )
+
+    market_status = market.get(
+        "status",
+        "UNKNOWN",
+    )
+
+    # --------------------------------------------------------
+    # Run status
+    # --------------------------------------------------------
+
+    clinical_error = bool(clinical.get("error"))
+    patent_error = bool(patent.get("error"))
+    domain_warning = clinical_error or patent_error
+
+    clinical_available = bool(clinical_trials) and not clinical_error
+    market_available = market_status != "UNAVAILABLE" and bool(market_data)
+    patent_available = bool(normalize_patents(patent.get("patents")).shape[0])
+
+    if domain_warning:
+        status_html = """
+        <div class="status-strip status-warning">
+            <div class="status-dot status-dot-warning"></div>
+            Analysis completed with domain warnings. Review source availability below.
+        </div>
+        """
+    else:
+        status_html = """
+        <div class="status-strip">
+            <div class="status-dot"></div>
+            Analysis completed. Review the evidence by domain below.
+        </div>
+        """
+
+    st.markdown(status_html, unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="section-title">Evidence coverage</div>',
+        unsafe_allow_html=True,
+    )
+
+    coverage_cols = st.columns(3)
+
+    coverage_data = [
+        (
+            "Clinical",
+            "Available" if clinical_available else "Unavailable",
+            "ClinicalTrials.gov",
+            clinical_available,
+        ),
+        (
+            "Market",
+            "Available" if market_available else "Unavailable",
+            "IQVIA / source-backed estimates",
+            market_available,
+        ),
+        (
+            "Patent",
+            "Available" if patent_available else "Limited",
+            "Preliminary IP evidence",
+            patent_available,
+        ),
+    ]
+
+    for col, (name, state, detail, available) in zip(
+        coverage_cols,
+        coverage_data,
+    ):
+        with col:
+            with st.container(border=True):
+                st.markdown(
+                    f"**{name}**"
+                )
+                if available:
+                    st.success(state)
+                else:
+                    st.warning(state)
+                st.caption(detail)
+
+    # --------------------------------------------------------
+    # Overview
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Executive overview</div>',
+        unsafe_allow_html=True,
+    )
+
+    parsed = clinical.get("parsed_query", {})
+
+    indication = (
+        parsed.get("condition")
+        or clinical.get("category")
+        or "Not specified"
+    )
+
+    intervention = (
+        parsed.get("intervention")
+        or "Not specified"
+    )
+
+    market_size = market_data.get(
+        "estimated_size",
+        "Unavailable",
+    )
+
+    cagr = market_data.get(
+        "cagr",
+        "Unavailable",
+    )
+
+    m1, m2, m3, m4 = st.columns(4)
+
+    with m1:
+        st.metric(
+            "Therapeutic area",
+            indication.title()
+            if indication != "Not specified"
+            else indication,
+            help="Parsed from the clinical query.",
+        )
+
+    with m2:
+        st.metric(
+            "Clinical matches",
+            str(clinical_count) if not clinical.get("error") else "Unavailable",
+            help="Validated ClinicalTrials.gov records. Unavailable means the registry request failed.",
+        )
+
+    with m3:
+        st.metric(
+            "Market size",
+            market_size,
+            help=f"Source year: {market_data.get('estimated_size_year', 'Not reported')}",
+        )
+
+    with m4:
+        st.metric(
+            "Preliminary IP risk",
+            patent_risk,
+            help="Preliminary intelligence only; not a legal freedom-to-operate opinion.",
+        )
+
+    scope_parts = []
+    if indication != "Not specified":
+        scope_parts.append(f'<span class="scope-chip"><strong>Area</strong> {esc(indication.title())}</span>')
+    if intervention != "Not specified":
+        scope_parts.append(f'<span class="scope-chip"><strong>Intervention</strong> {esc(intervention)}</span>')
+    if parsed.get("phase"):
+        scope_parts.append(f'<span class="scope-chip"><strong>Phase</strong> {esc(parsed["phase"])}</span>')
+    if parsed.get("status"):
+        scope_parts.append(f'<span class="scope-chip"><strong>Status</strong> {esc(parsed["status"])}</span>')
+    if parsed.get("location"):
+        scope_parts.append(f'<span class="scope-chip"><strong>Region</strong> {esc(parsed["location"])}</span>')
+
+    if scope_parts:
+        st.markdown(
+            '<div class="query-meta">Parsed research scope</div>'
+            '<div class="scope-strip">'
+            + "".join(scope_parts)
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+
+    # --------------------------------------------------------
+    # Recommendation
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Strategic assessment</div>',
+        unsafe_allow_html=True,
+    )
+
+    recommendation = results.get(
+        "conclusion",
+        "No strategic conclusion was generated.",
+    )
+
+    with st.container(border=True):
+        st.caption("CROSS-DOMAIN DECISION SIGNAL")
+        st.markdown("### Assessment")
+        st.write(recommendation)
+
+        positive_signals = []
+        constraints = []
+
+        if clinical_available:
+            positive_signals.append(
+                f"{clinical_count} matching clinical trial(s)"
+            )
+        else:
+            constraints.append("Clinical registry evidence unavailable")
+
+        if market_available:
+            if market_size != "Unavailable":
+                positive_signals.append(
+                    f"Market estimate: {market_size}"
+                )
+            if cagr != "Unavailable":
+                positive_signals.append(
+                    f"Reported growth range: {cagr}"
+                )
+        else:
+            constraints.append("Market intelligence unavailable")
+
+        if patent_available:
+            positive_signals.append("Patent evidence retrieved")
+        else:
+            constraints.append("Patent/FTO evidence currently unavailable")
+
+        signal_col, constraint_col = st.columns(2)
+
+        with signal_col:
+            st.markdown("**Positive signals**")
+            if positive_signals:
+                for item in positive_signals:
+                    st.markdown(f"- {item}")
+            else:
+                st.caption("No positive evidence signals available.")
+
+        with constraint_col:
+            st.markdown("**Constraints**")
+            if constraints:
+                for item in constraints:
+                    st.markdown(f"- {item}")
+            else:
+                st.caption("No domain constraints reported.")
+
+
+    # --------------------------------------------------------
+    # Intelligence tabs
+    # --------------------------------------------------------
+
+    tab_clinical, tab_market, tab_patent, tab_trace = st.tabs(
+        [
+            "Clinical evidence",
+            "Market intelligence",
+            "Patent landscape",
+            "Run details",
+        ]
+    )
+
+    # ========================================================
+    # Clinical tab
+    # ========================================================
+
+    with tab_clinical:
+
+        st.markdown(
+            '<div class="section-title">Clinical development</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.write(
+            get_clinical_summary(
+                clinical
+            )
+        )
+
+        parsed_items = []
+
+        for label, key in [
+            ("Condition", "condition"),
+            ("Intervention", "intervention"),
+            ("Phase", "phase"),
+            ("Recruitment", "status"),
+            ("Location", "location"),
+        ]:
+            value = parsed.get(key)
+
+            if value:
+                parsed_items.append(
+                    f"**{label}:** {value}"
+                )
+
+        if parsed_items:
+            st.markdown(
+                " · ".join(parsed_items)
+            )
+
+        trials_df = normalize_trials(
+            clinical_trials
+        )
+
+        if trials_df.empty:
+
+            error = clinical.get(
+                "error"
+            )
+
+            if error:
+                st.error(error)
+            else:
+                st.markdown(
+                    """
+                    <div class="empty-state">
+                        <div class="empty-state-title">No matching clinical trials</div>
+                        <div class="empty-state-copy">
+                        The registry returned no records matching the parsed
+                        clinical constraints. This is distinct from a registry
+                        request failure.
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+        else:
+
+            st.markdown(
+                render_trials_table(trials_df),
+                unsafe_allow_html=True,
+            )
+
+
+            render_source(
+                {
+                    "name": "ClinicalTrials.gov",
+                    "url": "https://clinicaltrials.gov/",
+                    "retrieved_at": clinical.get(
+                        "retrieved_at"
+                    ),
+                },
+                "Registry",
+            )
+
+            st.markdown(
+                """
+                <div class="footnote">
+                Trial records are retrieved from the ClinicalTrials.gov
+                API. Individual NCT records include their own source URL.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    # ========================================================
+    # Market tab
+    # ========================================================
+
+    with tab_market:
+
+        st.markdown(
+            '<div class="section-title">Commercial market</div>',
+            unsafe_allow_html=True,
+        )
+
+        market_summary = market.get(
+            "summary",
+            "No market summary is available.",
+        )
+
+        st.write(
+            market_summary
+        )
+
+        if market_status == "UNAVAILABLE":
+
+            st.markdown(
+                """
+                <div class="notice notice-warning">
+                A reliable source-backed market estimate is not currently
+                available for this therapeutic area. No fabricated estimate
+                is displayed.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+
+            m1, m2, m3 = st.columns(3)
+
+            with m1:
+                st.metric(
+                    "2026 market",
+                    market_data.get(
+                        "estimated_size",
+                        "Unavailable",
+                    ),
+                )
+
+            with m2:
+                st.metric(
+                    "Reported CAGR",
+                    market_data.get(
+                        "cagr",
+                        "Unavailable",
+                    ),
+                )
+
+            with m3:
+                st.metric(
+                    "Competition",
+                    market_data.get(
+                        "competition_level",
+                        "Unavailable",
+                    ),
+                )
+
+            projections = market_data.get(
+                "projections",
+                [],
+            )
+
+            if projections:
+
+                st.markdown(
+                    '<div class="section-title">Derived market trajectory</div>',
+                    unsafe_allow_html=True,
+                )
+
+                proj_df = pd.DataFrame(
+                    projections
+                )
+
+                if (
+                    "Year" in proj_df.columns
+                    and "Market Size ($B)" in proj_df.columns
+                ):
+
+                    chart_df = (
+                        proj_df[
+                            ["Year", "Market Size ($B)"]
+                        ]
+                        .set_index("Year")
+                    )
+
+                    st.line_chart(
+                        chart_df,
+                        height=300,
+                    )
+
+                st.markdown(
+                    """
+                    <div class="footnote">
+                    The first value is the source-backed baseline.
+                    Subsequent values are derived projections using the
+                    configured growth-rate assumption; they are not
+                    independently reported market figures.
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            drivers = market_data.get(
+                "key_drivers",
+                [],
+            )
+
+            if drivers:
+
+                st.markdown(
+                    '<div class="section-title">Commercial drivers</div>',
+                    unsafe_allow_html=True,
+                )
+
+                for driver in drivers:
+                    st.markdown(
+                        f"- {driver}"
+                    )
+
+        render_source(
+            market.get("source"),
+            "Primary market source",
+        )
+
+        if market.get("secondary_source"):
+            render_source(
+                market.get("secondary_source"),
+                "Secondary context",
+            )
+
+    # ========================================================
+    # Patent tab
+    # ========================================================
+
+    with tab_patent:
+
+        st.markdown(
+            '<div class="section-title">Intellectual property</div>',
+            unsafe_allow_html=True,
+        )
+
+        patent_summary = patent.get(
+            "summary",
+            "No patent assessment is available.",
+        )
+
+        st.write(
+            patent_summary
+        )
+
+        if patent.get("error"):
+
+            st.markdown(
+                f"""
+                <div class="notice notice-warning">
+                {esc(patent["error"])}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        patents_df = normalize_patents(
+            patent.get("patents")
+        )
+
+        if patents_df.empty:
+
+            st.markdown(
+                """
+                <div class="notice notice-warning">
+                Patent evidence is currently unavailable for this analysis.
+                The system does not substitute simulated patents or a
+                definitive FTO conclusion when evidence cannot be established.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        else:
+
+            st.dataframe(
+                patents_df,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        st.markdown(
+            """
+            <div class="footnote">
+            Preliminary IP risk is a research signal, not legal advice.
+            Freedom-to-Operate requires professional claim-level analysis,
+            jurisdiction review and consideration of patent-family and
+            prosecution information.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        render_source(
+            {
+                "name": patent.get(
+                    "source",
+                    "Patent source",
+                ),
+                "url": patent.get(
+                    "source_url"
+                ),
+                "retrieved_at": patent.get(
+                    "retrieved_at"
+                ),
+            },
+            "Patent source",
+        )
+
+    # ========================================================
+    # Run details tab
+    # ========================================================
+
+    with tab_trace:
+
+        st.markdown(
+            '<div class="section-title">Agent run</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            f"""
+            <div class="notice notice-info">
+            Query: <strong>{esc(user_query)}</strong>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            '<div class="section-title">Execution trace</div>',
+            unsafe_allow_html=True,
+        )
+
+        trace_lines = results.get(
+            "trace",
+            [],
+        )
+
+        trace_html = "".join(
+            f'<div class="trace-line">{esc(line)}</div>'
+            for line in trace_lines
+        )
+
+        st.markdown(
+            f'<div class="trace">{trace_html}</div>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            '<div class="section-title">Parsed clinical query</div>',
+            unsafe_allow_html=True,
+        )
+
+        if parsed:
+            st.json(parsed)
+        else:
+            st.info(
+                "No structured clinical query was returned."
+            )
+
+        st.markdown(
+            '<div class="section-title">API parameters</div>',
+            unsafe_allow_html=True,
+        )
+
+        api_parameters = clinical.get(
+            "api_parameters"
+        )
+
+        if api_parameters:
+            st.json(api_parameters)
+        else:
+            st.info(
+                "No API parameters were returned."
+            )
+
+    # ========================================================
+    # PDF export
+    # ========================================================
+
+    st.markdown(
+        '<div class="section-title">Report</div>',
+        unsafe_allow_html=True,
+    )
+
+    export_col1, export_col2 = st.columns(
+        [4, 1]
+    )
+
+    with export_col1:
+        st.markdown(
+            """
+            <div class="notice">
+            Generate a PDF brief containing the current clinical,
+            patent and market results.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with export_col2:
+
+        try:
+
+            if not clinical.get("summary"):
+                clinical["summary"] = get_clinical_summary(clinical)
+
+            pdf_path = generate_pdf_report(
+                results,
+                user_query,
+            )
+
+            with open(
+                pdf_path,
+                "rb",
+            ) as pdf_file:
+
+                pdf_data = pdf_file.read()
+
+            st.download_button(
+                "Download PDF",
+                data=pdf_data,
+                file_name=(
+                    "pharmintel_analysis.pdf"
+                ),
+                mime="application/pdf",
+                use_container_width=True,
+            )
+
+        except Exception as exc:
+
+            st.warning(
+                f"PDF generation is currently unavailable: {exc}"
+            )
+
+
+# ============================================================
+# Footer
+# ============================================================
+
+st.markdown(
+    """
+    <div class="footer">
+    PharmIntel is a research and decision-support prototype.
+    It does not provide medical advice, legal advice, definitive
+    Freedom-to-Operate opinions, or investment guarantees.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
