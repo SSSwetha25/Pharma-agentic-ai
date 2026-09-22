@@ -3,6 +3,7 @@
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 import re
+from evidence.evidence_schema import create_evidence
 
 
 # ============================================================
@@ -422,6 +423,101 @@ def run_market_agent(
         "competition_level": data["competition_level"],
     }
 
+        # --------------------------------------------------------
+    # Build standardized market evidence records
+    # --------------------------------------------------------
+
+    evidence_records = []
+
+    source_url = data["source"]["url"]
+    source_name = data["source"]["name"]
+
+    # Source-reported market size
+    evidence_records.append(
+        create_evidence(
+            source=source_name,
+            source_type="market_report",
+            claim=(
+                f"The {data['category']} market was approximately "
+                f"USD {base_value:.1f}B in {data['market_size_year']}."
+            ),
+            evidence=(
+                f"{source_name} reports a market size of approximately "
+                f"USD {base_value:.1f}B for {data['market_size_year']}."
+            ),
+            url=source_url,
+            status="source-reported",
+            confidence="high",
+            agent="Market Agent",
+            record_id="market_size",
+        ).to_dict()
+    )
+
+    # Source-reported growth range
+    evidence_records.append(
+        create_evidence(
+            source=source_name,
+            source_type="market_report",
+            claim=(
+                f"The reported market growth range is "
+                f"{data['cagr']}."
+            ),
+            evidence=(
+                f"{source_name} reports a {data['cagr']} "
+                f"growth range for the {data['category']} market."
+            ),
+            url=source_url,
+            status="source-reported",
+            confidence="high",
+            agent="Market Agent",
+            record_id="market_growth",
+        ).to_dict()
+    )
+
+    # Source-reported forecast
+    evidence_records.append(
+        create_evidence(
+            source=source_name,
+            source_type="market_report",
+            claim=(
+                f"The reported market forecast is approximately "
+                f"USD {data['forecast_market_size']:.1f}B "
+                f"by {data['forecast_year']}."
+            ),
+            evidence=(
+                f"{source_name} reports a forecast market size of "
+                f"approximately USD {data['forecast_market_size']:.1f}B "
+                f"for {data['forecast_year']}."
+            ),
+            url=source_url,
+            status="source-reported",
+            confidence="high",
+            agent="Market Agent",
+            record_id="market_forecast",
+        ).to_dict()
+    )
+
+    # Derived projection evidence
+    evidence_records.append(
+        create_evidence(
+            source="Internal calculation",
+            source_type="derived_analysis",
+            claim=(
+                "Intermediate market projections were derived "
+                "using the midpoint of the reported growth range."
+            ),
+            evidence=(
+                "The Market Agent derives intermediate projections "
+                "using a 14% growth rate, representing the midpoint "
+                "of the source-reported 13–15% range."
+            ),
+            url=None,
+            status="derived",
+            confidence="moderate",
+            agent="Market Agent",
+            record_id="derived_projection",
+        ).to_dict()
+    )
     strategic_signals = _build_strategic_signals(data)
 
     summary = (
@@ -479,6 +575,7 @@ def run_market_agent(
                 "and strategic signals are calculated or "
                 "interpreted separately."
             ),
+            "evidence": evidence_records,
         },
     }
 

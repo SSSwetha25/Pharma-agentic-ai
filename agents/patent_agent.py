@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 from urllib.parse import quote_plus
+from evidence.evidence_schema import create_evidence
 
 
 # ============================================================
@@ -919,7 +920,26 @@ def run_patent_agent(
                 "Risk Level",
             ]
         )
-
+        evidence_records = [
+            create_evidence(
+                source="Google Patents",
+                source_type="patent_database",
+                claim=(
+                    f"Patent/IP evidence could not be retrieved for "
+                    f"{intervention or condition or search_query} "
+                    f"in the {geography} jurisdiction."
+                ),
+                evidence=(
+                    f"The currently implemented Google Patents retrieval "
+                    f"operation failed: {exc}"
+                ),
+                url=GOOGLE_PATENTS_URL,
+                status="unavailable",
+                confidence="unknown",
+                agent="Patent Agent",
+                record_id="patent_search",
+            ).to_dict()
+        ]
         return {
             "agent": "patent",
             "query": user_query,
@@ -934,6 +954,7 @@ def run_patent_agent(
             ),
             "patents": empty_df,
             "error": str(exc),
+            "evidence": evidence_records,
         }
 
     # --------------------------------------------------------
@@ -1012,6 +1033,71 @@ def run_patent_agent(
 
         max_risk = "Low"
 
+        # --------------------------------------------------------
+    # Build standardized patent evidence records
+    # --------------------------------------------------------
+
+    evidence_records = []
+
+    if patent_records:
+
+        for patent in processed_patents:
+
+            evidence_records.append(
+                create_evidence(
+                    source="Google Patents",
+                    source_type="patent_database",
+                    claim=(
+                        f"Potentially relevant patent record "
+                        f"{patent.get('Patent ID', 'Unknown')} "
+                        f"was retrieved."
+                    ),
+                    evidence=(
+                        f"Patent title: {patent.get('Title', 'Unknown')}. "
+                        f"Assignee: {patent.get('Assignee', 'Unknown')}. "
+                        f"Status: {patent.get('Status', 'Unknown')}. "
+                        f"Research relevance score: "
+                        f"{patent.get('Relevance Score', 0)}. "
+                        f"Research risk classification: "
+                        f"{patent.get('Risk Level', 'Unknown')}."
+                    ),
+                    url=patent.get("Source URL"),
+                    status="retrieved",
+                    confidence="moderate",
+                    agent="Patent Agent",
+                    record_id=patent.get(
+                        "Patent ID",
+                        "Unknown"
+                    ),
+                ).to_dict()
+            )
+
+    else:
+
+        evidence_records.append(
+            create_evidence(
+                source="Google Patents",
+                source_type="patent_database",
+                claim=(
+                    f"No patent records were retrieved by the "
+                    f"currently implemented search for "
+                    f"'{search_query}' in {geography}."
+                ),
+                evidence=(
+                    "The search completed without returning "
+                    "patent records. This does not establish "
+                    "that no relevant patents exist."
+                ),
+                url=(
+                    f"{GOOGLE_PATENTS_URL}/"
+                ),
+                status="no_records_returned",
+                confidence="unknown",
+                agent="Patent Agent",
+                record_id="patent_search",
+            ).to_dict()
+        )
+
     # --------------------------------------------------------
     # Generate summary
     # --------------------------------------------------------
@@ -1065,6 +1151,8 @@ def run_patent_agent(
         "summary": summary,
 
         "patents": patents_df,
+
+        "evidence": evidence_records,
     }
 
 

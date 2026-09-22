@@ -5,6 +5,8 @@ from typing import Dict, Any
 from agents.clinical_agent import run_clinical_agent
 from agents.patent_agent import run_patent_agent
 from agents.market_agent import run_market_agent
+from evidence.evidence_aggregator import EvidenceAggregator
+from opportunity_scoring import calculate_opportunity_score
 
 
 # ============================================================
@@ -359,7 +361,40 @@ def run_master_agent(
             "Structured strategic market signals "
             "added to evidence aggregation."
         )
+    evidence_aggregator = EvidenceAggregator()
 
+    aggregated_evidence = evidence_aggregator.aggregate(
+        clinical_data=clinical_results,
+        patent_data=patent_results,
+        market_data=market_results,
+    )
+    opportunity_score = calculate_opportunity_score(
+        evidence_summary={
+            "clinical": {
+                "trial_count": num_trials,
+                "phase": phase,
+                "status": (
+                    "available"
+                    if clinical_results.get("trials")
+                    else "unavailable"
+                ),
+            },
+            "market": {
+                "estimated_size": market["estimated_size"],
+                "cagr": cagr,
+                "competition_level": market[
+                    "competition_level"
+                ],
+                "status": market_results.get(
+                    "status",
+                    "UNKNOWN"
+                ),
+            },
+            "patent": {
+                "risk_level": max_risk,
+            },
+        }
+    )    
     # --------------------------------------------------------
     # 4. Evidence Aggregation
     # --------------------------------------------------------
@@ -370,6 +405,7 @@ def run_master_agent(
     )
 
     evidence_summary = {
+         "aggregated_evidence": aggregated_evidence,
         "clinical": {
             "trial_count": num_trials,
             "indication": indication,
@@ -596,6 +632,7 @@ def run_master_agent(
         "patent": patent_results,
         "market": market_results,
         "evidence_summary": evidence_summary,
+        "opportunity_score": opportunity_score,
         "conclusion": recommendation,
         "trace": trace,
     }
@@ -702,6 +739,19 @@ if __name__ == "__main__":
     print(
         result["conclusion"]
     )
+    print("\n" + "=" * 70)
+    print("OPPORTUNITY SCORE")
+    print("=" * 70)
+
+    score_data = result["opportunity_score"]
+
+    print("Overall Score:", score_data["overall_score"])
+    print("Rating:", score_data["rating"])
+    print("Confidence:", score_data["confidence"])
+
+    print("\nDimension Scores:")
+    for name, data in score_data["dimension_scores"].items():
+        print(f"{name}: {data}")
 
     print("\n" + "=" * 70)
     print("AGENT EXECUTION TRACE")
@@ -709,3 +759,13 @@ if __name__ == "__main__":
 
     for entry in result["trace"]:
         print(entry)
+        print("\n" + "=" * 70)
+        print("AGGREGATED EVIDENCE")
+        print("=" * 70)
+
+        from pprint import pprint
+
+        pprint(
+            result["evidence_summary"]["aggregated_evidence"],
+            sort_dicts=False
+        )

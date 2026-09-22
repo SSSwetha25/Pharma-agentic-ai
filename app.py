@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
+import master_agent
 from master_agent import run_master_agent
 from report.report_generator import generate_pdf_report
 
@@ -16,7 +17,7 @@ st.set_page_config(
     page_title="PharmIntel",
     page_icon="✚",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -57,15 +58,6 @@ st.markdown(
         max-width: 1440px;
         padding-top: 1.5rem;
         padding-bottom: 3rem;
-    }
-
-    [data-testid="stSidebar"] {
-        background: #FFFFFF;
-        border-right: 1px solid var(--line);
-    }
-
-    [data-testid="stSidebar"] .block-container {
-        padding-top: 1.5rem;
     }
 
     h1, h2, h3, h4 {
@@ -1082,6 +1074,7 @@ if analyze_btn:
             )
             st.session_state["last_results"] = results
             st.session_state["last_query"] = user_query.strip()
+        
         except Exception as exc:
             st.error(
                 "The analysis could not be completed."
@@ -1245,9 +1238,9 @@ if analyze_btn:
 
     with m4:
         st.metric(
-            "Preliminary IP risk",
+            "IP evidence status",
             patent_risk,
-            help="Preliminary intelligence only; not a legal freedom-to-operate opinion.",
+            help="Evidence availability only; this is not a legal freedom-to-operate opinion.",
         )
 
     scope_parts = []
@@ -1268,6 +1261,97 @@ if analyze_btn:
             '<div class="scope-strip">'
             + "".join(scope_parts)
             + "</div>",
+            unsafe_allow_html=True,
+        )
+
+    # --------------------------------------------------------
+    # Opportunity score
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Opportunity assessment</div>',
+        unsafe_allow_html=True,
+    )
+
+    opportunity_score = results.get("opportunity_score", {})
+    overall_score = opportunity_score.get("overall_score")
+    rating = opportunity_score.get("rating", "Unavailable")
+    evidence_confidence = opportunity_score.get("evidence_confidence", {})
+    confidence = evidence_confidence.get(
+        "level",
+        opportunity_score.get("confidence", "Unavailable"),
+    )
+    dimensions = opportunity_score.get("dimension_scores", {})
+
+    if overall_score is None:
+        st.markdown(
+            """
+            <div class="notice notice-warning">
+            Opportunity scoring is currently unavailable because the scoring
+            engine did not return a validated score.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        score_cols = st.columns(3)
+
+        with score_cols[0]:
+            st.metric(
+                "Opportunity score",
+                f"{overall_score} / 100",
+                help="Normalized score from the available market, clinical, competition and IP evidence.",
+            )
+
+        with score_cols[1]:
+            st.metric(
+                "Assessment",
+                str(rating),
+                help="Interpretation of the normalized opportunity score.",
+            )
+
+        with score_cols[2]:
+            st.metric(
+                "Evidence confidence",
+                str(confidence),
+                help="Evidence confidence is separate from the opportunity score.",
+            )
+
+        dimension_labels = {
+            "market": "Market potential",
+            "clinical": "Clinical activity",
+            "competition": "Competition",
+            "ip": "IP evidence",
+        }
+
+        dimension_cols = st.columns(4)
+
+        for col, key in zip(
+            dimension_cols,
+            ["market", "clinical", "competition", "ip"],
+        ):
+            dimension = dimensions.get(key, {})
+            score = dimension.get("score")
+            maximum = dimension.get("maximum")
+
+            with col:
+                if score is None:
+                    st.metric(dimension_labels[key], "Unknown")
+                    st.caption("Excluded from score denominator")
+                else:
+                    st.metric(
+                        dimension_labels[key],
+                        f"{score} / {maximum}",
+                    )
+
+        st.markdown(
+            """
+            <div class="footnote">
+            The opportunity score is normalized over dimensions for which
+            evidence is available. Missing evidence is not treated as zero;
+            evidence confidence is reported separately.
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 

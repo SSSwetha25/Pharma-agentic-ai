@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
 from agents.clinical_query_parser import parse_clinical_query
+from evidence.evidence_schema import create_evidence
 
 
 # ============================================================
@@ -656,28 +657,86 @@ def search_clinical_trials(
                 parsed["location"],
             )
         ]
+        # --------------------------------------------------------
+    # Build standardized evidence records
+    # --------------------------------------------------------
 
+    evidence_records = []
+
+    for trial in trials:
+
+        evidence_text = (
+            f"Clinical trial {trial.get('nct_id')} matched the requested "
+            f"criteria. Status: {trial.get('status')}. "
+            f"Phase: {trial.get('phase')}. "
+            f"Condition(s): {trial.get('conditions')}. "
+            f"Intervention(s): {trial.get('interventions')}."
+        )
+
+        evidence_record = create_evidence(
+            source="ClinicalTrials.gov",
+            source_type="clinical_registry",
+            claim=(
+                f"Trial {trial.get('nct_id')} matches the requested "
+                f"clinical research criteria."
+            ),
+            evidence=evidence_text,
+            url=trial.get("source", {}).get("url"),
+            status="validated",
+            confidence="high",
+            agent="Clinical Agent",
+            record_id=trial.get("nct_id"),
+        )
+
+        evidence_records.append(
+            evidence_record.to_dict()
+        )
+            # --------------------------------------------------------
+    # Aggregate clinical evidence
+    # --------------------------------------------------------
+
+    if trials:
+        trial_ids = [
+            trial.get("nct_id")
+            for trial in trials
+            if trial.get("nct_id")
+        ]
+
+        aggregate_evidence = create_evidence(
+            source="ClinicalTrials.gov",
+            source_type="clinical_registry",
+            claim=f"{len(trials)} matching clinical trials identified.",
+            evidence=(
+                f"The Clinical Agent retrieved and locally validated "
+                f"{len(trials)} ClinicalTrials.gov records matching "
+                f"the requested clinical criteria."
+            ),
+            url="https://clinicaltrials.gov/",
+            status="validated",
+            confidence="high",
+            agent="Clinical Agent",
+            record_id=";".join(trial_ids),
+        )
+
+        evidence_records.insert(
+            0,
+            aggregate_evidence.to_dict()
+        )
     # --------------------------------------------------------
     # Return structured result
     # --------------------------------------------------------
 
     return {
-        "agent": "clinical",
-
-        "query": query,
-
-        "parsed_query": parsed,
-
-        "source": "ClinicalTrials.gov",
-
-        "retrieved_at": retrieved_at,
-
-        "api_parameters": params,
-
-        "trial_count": len(trials),
-
-        "trials": trials,
-    }
+    "agent": "clinical",
+    "query": query,
+    "parsed_query": parsed,
+    "source": "ClinicalTrials.gov",
+    "retrieved_at": retrieved_at,
+    "api_parameters": params,
+    "trial_count": len(trials),
+    "trials": trials,
+    "evidence": evidence_records,
+}
 
 
 # ============================================================
